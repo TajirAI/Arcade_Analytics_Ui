@@ -9,12 +9,6 @@ import shutil
 from PIL import Image
 import json
 
-
-# MongoDB connection setup
-# client = MongoClient("mongodb://localhost:27017/")
-# db = client["arcade_db"]
-# users_collection = db["users"]
-
 DATABASE_FOLDER = "database"
 
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
@@ -33,6 +27,11 @@ def read_json(file_name):
         return json.load(f)
 
 def write_json(file_name, data):
+    file_path = os.path.join(DATABASE_FOLDER, file_name)
+    with open(file_path, "w") as f:
+        json.dump(data, f, indent=4)
+
+def write_new_json(file_name, data):
     file_path = os.path.join(DATABASE_FOLDER, file_name)
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
@@ -61,6 +60,36 @@ def save_and_display_screenshot(screenshot_path, save_folder):
             st.warning(f"Could not save screenshot {screenshot_path}. Error: {e}")
     return None
 
+def check_screenshot(screenshot_path,save_folder,game_data,):
+    if screenshot_path:
+        # Get the file name from the path
+        screenshot_filename = os.path.basename(screenshot_path)
+
+        if not os.path.exists(save_folder):
+                os.makedirs(save_folder)  # Create folder if it doesn't exist
+            
+        save_path = os.path.join(save_folder, screenshot_filename)
+
+        for item in game_data:
+            if item["screenshot"] == save_path:
+                return False
+        return True 
+    
+def check_screenshot_1(screenshot_path,save_folder,review_data,):
+    if screenshot_path:
+        # Get the file name from the path
+        screenshot_filename = os.path.basename(screenshot_path)
+
+        if not os.path.exists(save_folder):
+                os.makedirs(save_folder)  # Create folder if it doesn't exist
+            
+        save_path = os.path.join(save_folder, screenshot_filename)
+
+        for item in review_data:
+            if item["screenshot"] == save_path:
+                return False
+        return True 
+
 def get_game_count(game_name, selected_date):
     data = read_json(f"{game_name}.json")
     formatted_date = selected_date.strftime("%d_%m_%y")
@@ -70,7 +99,7 @@ def format_username(username):
     if "@" in username:
         return username.split("@")[0]  # Strip the domain
     return username
-
+  
 users = read_json("users.json")
 
 if not any(user["username"] == "Admin" for user in users):
@@ -143,7 +172,29 @@ def show_signup_page():
                 st.success("User created successfully!")
         else:
             st.warning("Only 'Owner' role can access this page.")
-         
+
+def convert_to_12_hour_format(hour):
+    """
+    Convert a 24-hour format hour to 12-hour format with AM/PM.
+    
+    Args:
+        hour (str): Hour in 24-hour format as a string (e.g., "13:30").
+    
+    Returns:
+        str: Time in 12-hour format with AM/PM (e.g., "01:30 PM").
+    """
+    try:
+        # Parse the input hour as a datetime object
+        from datetime import datetime
+        hour = hour -1
+        hour = str(hour)
+        time_obj = datetime.strptime(hour, "%H")
+        # Convert to 12-hour format
+        return time_obj.strftime("%I %p").lstrip("0")
+    except ValueError:
+        # Return original hour if parsing fails
+        return hour
+
 if not st.session_state["logged_in"]:
     show_login_page()
     
@@ -172,8 +223,13 @@ else:
                 set_page("Briefing")
             if st.button("User Signup"):
                 set_page("User Signup")
-        if st.button("Data Insertion"):
-            set_page("Data Insertion")
+            if st.button("Review"):
+                set_page("Review_Admin")
+        else:
+            if st.button("Data Insertion"):
+                set_page("Data Insertion")
+            if st.button("Review"):
+                set_page("Review")
 
     if st.session_state.get("page") == "Home":
         # Main page content
@@ -320,6 +376,7 @@ else:
 
                 # Read the game data from the corresponding JSON file
                 game_data = read_json(f"{game_name}.json")
+                games_data = []
 
                 save_folder = os.path.join(os.getcwd(), 'screenshots', game_name)
 
@@ -360,19 +417,253 @@ else:
                                 for _, row in valid_data.iterrows():
                                     screenshot_path = row.get("Screenshot Path", "")
                                     full_screenshot_path = os.path.join(extract_dir, screenshot_path)
-                                    saved_screenshot_path = save_and_display_screenshot(full_screenshot_path, save_folder)
+                                    review_data = read_json("Review.json")  
+                                    review_trash = read_json("Review_Trash.json")  
+                                    review_admin = read_json("Review_Admin.json")  
+                                    if check_screenshot(full_screenshot_path,save_folder,game_data):
+                                        if check_screenshot_1(full_screenshot_path,save_folder,review_data): 
+                                            if check_screenshot_1(full_screenshot_path,save_folder,review_trash):
+                                                if check_screenshot_1(full_screenshot_path,save_folder,review_admin):             
+                                                    saved_screenshot_path = save_and_display_screenshot(full_screenshot_path, save_folder)
 
-                                    document = {
-                                        "processing_hour": processing_hour,
-                                        "time_duration": row["Time (minutes)"],
-                                        "screenshot": saved_screenshot_path if saved_screenshot_path else "",
-                                        "date": formatted_date
-                                    }
+                                                    document = {
+                                                        "Game":game_name,
+                                                        "processing_hour": processing_hour,
+                                                        "time_duration": row["Time (minutes)"],
+                                                        "screenshot": saved_screenshot_path if saved_screenshot_path else "",
+                                                        "date": formatted_date,
+                                                        "flag": "uncheck",
+                                                        "review":"Nothing"
+                                                    }
 
-                                    # Add the new data to the game data
-                                    game_data.append(document)
+                                                    # Add the new data to the game data
+                                                    games_data.append(document)
+                                                else:
+                                                    st.warning("Data already exists in admin review phase!")
+                                            else:
+                                                st.warning("Data already exists in review trash!")
+                                        else:
+                                            st.warning("Data already exists in review phase!")
+                                    else:
+                                        st.warning("Data already exists in Games!")
 
+                review_data = read_json("Review.json")  
+
+                for data in games_data:             
+                    review_data.append(data)
                 # Write the updated game data back to the JSON file
-                write_json(f"{game_name}.json", game_data)
+                write_json(f"Review.json", review_data)
 
             st.success(f"Data upload process completed for {file_count} file(s)!")
+    
+    elif st.session_state.get("page") == "Review":
+        st.header("Review Game Activity Data")
+        # Load data from Review.json
+        review_data = read_json("Review.json")
+
+        if review_data:
+            # Convert data into a DataFrame
+            try:
+                df = pd.DataFrame(review_data)
+            except ValueError:
+                st.error("Invalid data format in Review.json.")
+                df = pd.DataFrame()
+
+            if not df.empty:
+                # Ensure the "flag" column exists
+                if "flag" not in df.columns:
+                    df["flag"] = "uncheck"
+
+                # Filter by date
+                unique_dates = df['date'].dropna().unique()
+                selected_date = st.selectbox("Select a Date to Review", options=unique_dates)
+
+                # Filter data based on selected date
+                filtered_data = df[df['date'] == selected_date]
+
+                if not filtered_data.empty:
+                    # st.subheader("Game Activity Entries")
+
+                    if "processing_hour" in filtered_data.columns:
+                        # Sort the DataFrame by the numeric value of processing_hour in ascending order
+                        filtered_data = filtered_data.sort_values(by="processing_hour")
+
+                    for i, row in filtered_data.iterrows():
+
+
+                        cols = st.columns([1.5, 1.5, 0.5, 0.75, ])  # Define column layout for each row
+                        converted_hour = convert_to_12_hour_format(row["processing_hour"])
+                        game_info_html = f"""
+                        <div style="
+                            border: 1px solid #777;
+                            border-radius: 5px;
+                            padding: 10px;
+                            font-size: 16px;
+                            line-height: 1.5;
+                            margin-bottom: 20px;
+                        ">
+                            <h5 style="line-height: 1.5;padding:0px;">Game:{row['Game']}</h5>
+                            <b>Played Hour:</b> {converted_hour}<br>
+                            <b>Played Time:</b> {row['time_duration']} Mins<br>
+                        </div>
+                        """
+                        cols[0].markdown(game_info_html, unsafe_allow_html=True)
+                        # Display screenshot if it exists
+                        screenshot_path = row.get("screenshot", "")
+                        if os.path.exists(screenshot_path):
+                            image = Image.open(screenshot_path)
+                            new_image = image.resize((600, 300))
+                            cols[1].image(new_image, use_container_width= True)
+                        else:
+                            cols[1].write("Image not found.")
+
+                        # Checkbox to toggle "flag" status
+                        is_checked = row["flag"] == "uncheck"
+                        checked = cols[2].checkbox("Checked", value=is_checked, key=f"check_{i}")
+                        df.at[i, "flag"] = "uncheck" if checked else "Checked"
+
+                        # Conditionally render the select box
+                        if not checked:  # Show select box only if unchecked
+                            selected_option = cols[3].selectbox(
+                                "Review Options",
+                                ["No person", "Salesman Detection", "Doubling","Others",],
+                                key=f"select_{i}",
+                                label_visibility="collapsed"
+                            )
+                            df.at[i, "review"] = selected_option
+                        else:
+                            df.at[i, "review"] = "Nothing"
+                            cols[3].write("")  # Leave empty space if checked
+
+                    # Save changes to the JSON file
+                    if st.button("Save Changes"):
+                        # Update the Review.json with the modified DataFrame
+                        review_data = df.to_dict(orient="records")
+                        for data in review_data:
+                            game_data = read_json(f"{data["Game"]}.json")
+                            review_admin_data = read_json(f"Review_Admin.json")
+                            if data["flag"] == "Checked":
+                                review_admin_data.append(data)
+                                write_new_json("Review_Admin.json", review_admin_data)
+                            else:
+                                game_data.append(data)
+                                write_new_json(f"{data["Game"]}.json", game_data)
+
+                        review_data = read_json("Review.json")
+                        
+                        remaining_data = [entry for entry in review_data if entry["date"] != selected_date]
+
+                        # Save the remaining data back to Review.json
+                        write_json("Review.json", remaining_data)
+                        st.rerun()
+                                
+                        st.success("Changes saved successfully!")
+                else:
+                    st.info("No data available for the selected date.")
+            else:
+                st.warning("No valid data available in Review.json.")
+        else:
+            st.warning("No review data found.")
+    
+    elif st.session_state.get("page") == "Review_Admin":
+        st.header("Review Game Activity Data")
+        
+        # Load data from Review_Admin.json
+        review_data = read_json("Review_Admin.json")
+
+        if review_data:
+            # Convert data into a DataFrame
+            try:
+                df = pd.DataFrame(review_data)
+            except ValueError:
+                st.error("Invalid data format in Review_Admin.json.")
+                df = pd.DataFrame()
+
+            if not df.empty:
+                # Filter by date
+                unique_dates = df['date'].dropna().unique()
+                selected_date = st.selectbox("Select a Date to Review", options=unique_dates)
+
+                # Filter data based on the selected date
+                filtered_data = df[df['date'] == selected_date]
+
+                if not filtered_data.empty:
+                    # st.subheader("Game Activity Entries")
+
+                    # Initialize session state for rows if not already present
+                    if "row_reviews" not in st.session_state:
+                        st.session_state["row_reviews"] = {}
+
+                    for i, row in filtered_data.iterrows():
+                        cols = st.columns([1.0, 0.7, 0.5],)  # Row layout
+
+                        # Get the current review status
+                        row_index = row.name
+                        current_review = st.session_state["row_reviews"].get(row_index, row["review"])
+                        converted_hour = convert_to_12_hour_format(row["processing_hour"])
+                        
+                        game_info_html = f"""
+                        <div style="
+                            border: 1px solid #777;
+                            border-radius: 5px;
+                            padding: 10px;
+                            font-size: 16px;
+                            line-height: 1.5;
+                            margin-bottom: 20px;
+                        ">
+                            <h5 style="line-height: 1.5;padding:0px;">Review: {current_review}</h5>
+                            <b>Game:</b> {row['Game']}<br>
+                            <b>Played Hour:</b> {converted_hour}<br>
+                            <b>Played Time:</b> {row['time_duration']} Mins<br>
+                        </div>
+                        """
+                        
+                    # Display the formatted HTML in the first column
+                        cols[0].markdown(game_info_html, unsafe_allow_html=True)
+                        # Display the screenshot if available
+                        screenshot_path = row.get("screenshot", "")
+                        if os.path.exists(screenshot_path):
+                            image = Image.open(screenshot_path)
+                            cols[1].image(image, use_container_width=True)
+                        else:
+                            cols[1].write("Image not found.")
+
+                        # Button to update the review to "Noted"
+                        if cols[2].button("Select!", key=f"btn_{i}"):
+                            # Update session state to track changes
+                            st.session_state["row_reviews"][row_index] = "Noted"
+                            # Force a rerun to reflect updates
+                            st.rerun()
+
+                    # Save changes to JSON when "Save Changes" button is clicked
+                    if st.button("Save Changes"):
+                        # Apply the changes stored in session state to the DataFrame
+                        for row_index, updated_review in st.session_state["row_reviews"].items():
+                            df.at[row_index, "review"] = updated_review
+
+                        # Convert the updated DataFrame to a dictionary and save it to JSON
+                        updated_reviews = df.to_dict(orient="records")
+
+                        for data in updated_reviews:
+                            game_data = read_json(f"{data['Game']}.json")
+                            review_trash = read_json(f"Review_Trash.json")
+                            if data["review"] == "Noted":
+                                game_data.append(data)
+                                write_new_json(f"{data['Game']}.json", game_data)
+                            else:
+                                review_trash.append(data)
+                                write_new_json(f"Review_Trash.json", review_trash)
+
+                        # Remove entries from Review_Admin.json that were processed
+                        remaining_data = [entry for entry in updated_reviews if entry["date"] != selected_date]
+                        write_json("Review_Admin.json", remaining_data)
+
+                        st.success("Changes saved successfully!")
+                        st.rerun()
+
+                else:
+                    st.info("No data available for the selected date.")
+            else:
+                st.warning("No valid data available in Review_Admin.json.")
+        else:
+            st.warning("No review data found.")
