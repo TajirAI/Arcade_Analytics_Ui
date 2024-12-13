@@ -540,14 +540,14 @@ else:
                         # Update the Review.json with the modified DataFrame
                         review_data = df.to_dict(orient="records")
                         for data in review_data:
-                            game_data = read_json(f"{data["Game"]}.json")
+                            game_data = read_json(f"{data['Game']}.json")
                             review_admin_data = read_json(f"Review_Admin.json")
                             if data["flag"] == "Checked":
                                 review_admin_data.append(data)
                                 write_new_json("Review_Admin.json", review_admin_data)
                             else:
                                 game_data.append(data)
-                                write_new_json(f"{data["Game"]}.json", game_data)
+                                write_new_json(f"{data['Game']}.json", game_data)
 
                         review_data = read_json("Review.json")
                         
