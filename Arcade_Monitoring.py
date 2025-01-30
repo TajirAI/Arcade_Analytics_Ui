@@ -476,95 +476,96 @@ else:
 
                 # Filter by date
                 unique_dates = df['date'].dropna().unique()
-                selected_date = st.selectbox("Select a Date to Review", options=unique_dates)
+                options = ["--Select Date--"] + list(unique_dates)
+                selected_date = st.selectbox("Select a Date to Review", options=options)
 
-                # Filter data based on selected date
-                filtered_data = df[df['date'] == selected_date]
+                if selected_date != "--Select Date--":
+                    # Filter data based on selected date
+                    filtered_data = df[df['date'] == selected_date]
 
-                if not filtered_data.empty:
-                    # st.subheader("Game Activity Entries")
+                    if not filtered_data.empty:
+                        # st.subheader("Game Activity Entries")
 
-                    if "processing_hour" in filtered_data.columns:
-                        # Sort the DataFrame by the numeric value of processing_hour in ascending order
-                        filtered_data = filtered_data.sort_values(by="processing_hour")
+                        if "processing_hour" in filtered_data.columns:
+                            # Sort the DataFrame by the numeric value of processing_hour in ascending order
+                            filtered_data = filtered_data.sort_values(by="processing_hour")
 
-                    for i, row in filtered_data.iterrows():
+                        for i, row in filtered_data.iterrows():
 
-
-                        cols = st.columns([1.5, 1.5, 0.5, 0.75, ])  # Define column layout for each row
-                        converted_hour = convert_to_12_hour_format(row["processing_hour"])
-                        game_info_html = f"""
-                        <div style="
-                            border: 1px solid #777;
-                            border-radius: 5px;
-                            padding: 10px;
-                            font-size: 16px;
-                            line-height: 1.5;
-                            margin-bottom: 20px;
-                        ">
-                            <h5 style="line-height: 1.5;padding:0px;">Game:{row['Game']}</h5>
-                            <b>Played Hour:</b> {converted_hour}<br>
-                            <b>Played Time:</b> {row['time_duration']} Mins<br>
-                        </div>
-                        """
-                        cols[0].markdown(game_info_html, unsafe_allow_html=True)
-                        # Display screenshot if it exists
-                        screenshot_path = row.get("screenshot", "")
-                        if os.path.exists(screenshot_path):
-                            image = Image.open(screenshot_path)
-                            new_image = image.resize((600, 300))
-                            cols[1].image(new_image, use_container_width= True)
-                        else:
-                            cols[1].write("Image not found.")
-
-                        # Checkbox to toggle "flag" status
-                        is_checked = row["flag"] == "uncheck"
-                        checked = cols[2].checkbox("Checked", value=is_checked, key=f"check_{i}")
-                        df.at[i, "flag"] = "uncheck" if checked else "Checked"
-
-                        # Conditionally render the select box
-                        if not checked:  # Show select box only if unchecked
-                            selected_option = cols[3].selectbox(
-                                "Review Options",
-                                ["No person", "Salesman Detection", "Doubling","Others",],
-                                key=f"select_{i}",
-                                label_visibility="collapsed"
-                            )
-                            df.at[i, "review"] = selected_option
-                        else:
-                            df.at[i, "review"] = "Nothing"
-                            cols[3].write("")  # Leave empty space if checked
-
-                    # Save changes to the JSON file
-                    if st.button("Save Changes"):
-                        # Update the Review.json with the modified DataFrame
-                        review_data = df.to_dict(orient="records")
-                        for data in review_data:
-                            game_data = read_json(f"{data['Game']}.json")
-                            review_admin_data = read_json(f"Review_Admin.json")
-                            if data["flag"] == "Checked":
-                                review_admin_data.append(data)
-                                write_new_json("Review_Admin.json", review_admin_data)
+                            cols = st.columns([1.5, 1.5, 0.5, 0.75, ])  # Define column layout for each row
+                            converted_hour = convert_to_12_hour_format(row["processing_hour"])
+                            game_info_html = f"""
+                            <div style="
+                                border: 1px solid #777;
+                                border-radius: 5px;
+                                padding: 10px;
+                                font-size: 16px;
+                                line-height: 1.5;
+                                margin-bottom: 20px;
+                            ">
+                                <h5 style="line-height: 1.5;padding:0px;">Game:{row['Game']}</h5>
+                                <b>Played Hour:</b> {converted_hour}<br>
+                                <b>Played Time:</b> {row['time_duration']} Mins<br>
+                            </div>
+                            """
+                            cols[0].markdown(game_info_html, unsafe_allow_html=True)
+                            # Display screenshot if it exists
+                            screenshot_path = row.get("screenshot", "")
+                            if os.path.exists(screenshot_path):
+                                image = Image.open(screenshot_path)
+                                new_image = image.resize((600, 300))
+                                cols[1].image(new_image, use_column_width= True)
                             else:
-                                game_data.append(data)
-                                write_new_json(f"{data['Game']}.json", game_data)
+                                cols[1].write("Image not found.")
 
-                        review_data = read_json("Review.json")
-                        
-                        remaining_data = [entry for entry in review_data if entry["date"] != selected_date]
+                            # Checkbox to toggle "flag" status
+                            is_checked = row["flag"] == "uncheck"
+                            checked = cols[2].checkbox("Checked", value=is_checked, key=f"check_{i}")
+                            df.at[i, "flag"] = "uncheck" if checked else "Checked"
 
-                        # Save the remaining data back to Review.json
-                        write_json("Review.json", remaining_data)
-                        st.rerun()
-                                
-                        st.success("Changes saved successfully!")
-                else:
-                    st.info("No data available for the selected date.")
+                            # Conditionally render the select box
+                            if not checked:  # Show select box only if unchecked
+                                selected_option = cols[3].selectbox(
+                                    "Review Options",
+                                    ["No person", "Salesman Detection", "Doubling", "Others"],
+                                    key=f"select_{i}",
+                                    label_visibility="collapsed"
+                                )
+                                df.at[i, "review"] = selected_option
+                            else:
+                                df.at[i, "review"] = "Nothing"
+                                cols[3].write("")  # Leave empty space if checked
+
+                        # Save changes to the JSON file
+                        if st.button("Save Changes"):
+                            # Update the Review.json with the modified DataFrame
+                            review_data = df.to_dict(orient="records")
+                            for data in review_data:
+                                game_data = read_json(f"{data['Game']}.json")
+                                review_admin_data = read_json(f"Review_Admin.json")
+                                if data["flag"] == "Checked":
+                                    review_admin_data.append(data)
+                                    write_new_json("Review_Admin.json", review_admin_data)
+                                else:
+                                    game_data.append(data)
+                                    write_new_json(f"{data['Game']}.json", game_data)
+
+                            review_data = read_json("Review.json")
+                            
+                            remaining_data = [entry for entry in review_data if entry["date"] != selected_date]
+
+                            # Save the remaining data back to Review.json
+                            write_json("Review.json", remaining_data)
+                            st.rerun()
+                                    
+                            st.success("Changes saved successfully!")
+                    else:
+                        st.info("No data available for the selected date.")
             else:
                 st.warning("No valid data available in Review.json.")
         else:
             st.warning("No review data found.")
-    
+
     elif st.session_state.get("page") == "Review_Admin":
         st.header("Review Game Activity Data")
         
@@ -581,88 +582,92 @@ else:
 
             if not df.empty:
                 # Filter by date
-                unique_dates = df['date'].dropna().unique()
+                unique_dates = df['date'].dropna().unique().tolist()
+                unique_dates.insert(0, "--Select Date--")
                 selected_date = st.selectbox("Select a Date to Review", options=unique_dates)
 
                 # Filter data based on the selected date
-                filtered_data = df[df['date'] == selected_date]
+                if selected_date != "--Select Date--":
+                    filtered_data = df[df['date'] == selected_date]
 
-                if not filtered_data.empty:
-                    # st.subheader("Game Activity Entries")
+                    if not filtered_data.empty:
+                        # st.subheader("Game Activity Entries")
 
-                    # Initialize session state for rows if not already present
-                    if "row_reviews" not in st.session_state:
-                        st.session_state["row_reviews"] = {}
+                        # Initialize session state for rows if not already present
+                        if "row_reviews" not in st.session_state:
+                            st.session_state["row_reviews"] = {}
 
-                    for i, row in filtered_data.iterrows():
-                        cols = st.columns([1.0, 0.7, 0.5],)  # Row layout
+                        for i, row in filtered_data.iterrows():
+                            cols = st.columns([1.0, 0.7, 0.5],)  # Row layout
 
-                        # Get the current review status
-                        row_index = row.name
-                        current_review = st.session_state["row_reviews"].get(row_index, row["review"])
-                        converted_hour = convert_to_12_hour_format(row["processing_hour"])
-                        
-                        game_info_html = f"""
-                        <div style="
-                            border: 1px solid #777;
-                            border-radius: 5px;
-                            padding: 10px;
-                            font-size: 16px;
-                            line-height: 1.5;
-                            margin-bottom: 20px;
-                        ">
-                            <h5 style="line-height: 1.5;padding:0px;">Review: {current_review}</h5>
-                            <b>Game:</b> {row['Game']}<br>
-                            <b>Played Hour:</b> {converted_hour}<br>
-                            <b>Played Time:</b> {row['time_duration']} Mins<br>
-                        </div>
-                        """
-                        
-                    # Display the formatted HTML in the first column
-                        cols[0].markdown(game_info_html, unsafe_allow_html=True)
-                        # Display the screenshot if available
-                        screenshot_path = row.get("screenshot", "")
-                        if os.path.exists(screenshot_path):
-                            image = Image.open(screenshot_path)
-                            cols[1].image(image, use_container_width=True)
-                        else:
-                            cols[1].write("Image not found.")
+                            # Get the current review status
+                            row_index = row.name
+                            current_review = st.session_state["row_reviews"].get(row_index, row["review"])
+                            converted_hour = convert_to_12_hour_format(row["processing_hour"])
+                            
+                            game_info_html = f"""
+                            <div style="
+                                border: 1px solid #777;
+                                border-radius: 5px;
+                                padding: 10px;
+                                font-size: 16px;
+                                line-height: 1.5;
+                                margin-bottom: 20px;
+                            ">
+                                <h5 style="line-height: 1.5;padding:0px;">Review: {current_review}</h5>
+                                <b>Game:</b> {row['Game']}<br>
+                                <b>Played Hour:</b> {converted_hour}<br>
+                                <b>Played Time:</b> {row['time_duration']} Mins<br>
+                            </div>
+                            """
+                            
+                            # Display the formatted HTML in the first column
+                            cols[0].markdown(game_info_html, unsafe_allow_html=True)
+                            # Display the screenshot if available
+                            screenshot_path = row.get("screenshot", "")
+                            if os.path.exists(screenshot_path):
+                                image = Image.open(screenshot_path)
+                                cols[1].image(image, use_column_width=True)
+                            else:
+                                cols[1].write("Image not found.")
 
-                        # Button to update the review to "Noted"
-                        if cols[2].button("Select!", key=f"btn_{i}"):
-                            # Update session state to track changes
-                            st.session_state["row_reviews"][row_index] = "Noted"
-                            # Force a rerun to reflect updates
+                            # Button to update the review to "Noted"
+                            if cols[2].button("Select!", key=f"btn_{i}"):
+                                # Update session state to track changes
+                                st.session_state["row_reviews"][row_index] = "Noted"
+                                # Force a rerun to reflect updates
+                                st.rerun()
+
+                        # Save changes to JSON when "Save Changes" button is clicked
+                        if st.button("Save Changes"):
+                            # Apply the changes stored in session state to the DataFrame
+                            for row_index, updated_review in st.session_state["row_reviews"].items():
+                                df.at[row_index, "review"] = updated_review
+
+                            # Convert the updated DataFrame to a dictionary and save it to JSON
+                            updated_reviews = df.to_dict(orient="records")
+                            print("updated_reviews",updated_reviews)
+                            for data in updated_reviews:
+                                game_data = read_json(f"{data['Game']}.json")
+                                review_trash = read_json(f"Review_Trash.json")
+                                if data["review"] == "Noted":
+                                    game_data.append(data)
+                                    write_new_json(f"{data['Game']}.json", game_data)
+                                else:
+                                    review_trash.append(data)
+                                    write_new_json(f"Review_Trash.json", review_trash)
+
+                            # Remove entries from Review_Admin.json that were processed
+                            remaining_data = [entry for entry in updated_reviews if entry["date"] != selected_date]
+                            write_json("Review_Admin.json", remaining_data)
+
+                            st.success("Changes saved successfully!")
                             st.rerun()
 
-                    # Save changes to JSON when "Save Changes" button is clicked
-                    if st.button("Save Changes"):
-                        # Apply the changes stored in session state to the DataFrame
-                        for row_index, updated_review in st.session_state["row_reviews"].items():
-                            df.at[row_index, "review"] = updated_review
-
-                        # Convert the updated DataFrame to a dictionary and save it to JSON
-                        updated_reviews = df.to_dict(orient="records")
-
-                        for data in updated_reviews:
-                            game_data = read_json(f"{data['Game']}.json")
-                            review_trash = read_json(f"Review_Trash.json")
-                            if data["review"] == "Noted":
-                                game_data.append(data)
-                                write_new_json(f"{data['Game']}.json", game_data)
-                            else:
-                                review_trash.append(data)
-                                write_new_json(f"Review_Trash.json", review_trash)
-
-                        # Remove entries from Review_Admin.json that were processed
-                        remaining_data = [entry for entry in updated_reviews if entry["date"] != selected_date]
-                        write_json("Review_Admin.json", remaining_data)
-
-                        st.success("Changes saved successfully!")
-                        st.rerun()
-
+                    else:
+                        st.info("No data available for the selected date.")
                 else:
-                    st.info("No data available for the selected date.")
+                    st.info("Please select a date to review.")
             else:
                 st.warning("No valid data available in Review_Admin.json.")
         else:
