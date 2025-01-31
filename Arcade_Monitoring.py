@@ -2,7 +2,6 @@ import streamlit as st
 import zipfile
 import os
 import pandas as pd
-from pymongo import MongoClient
 from datetime import datetime
 import shutil
 from PIL import Image
