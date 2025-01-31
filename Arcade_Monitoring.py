@@ -7,7 +7,6 @@ from datetime import datetime
 import shutil
 from PIL import Image
 import json
-import hmac
 
 DATABASE_FOLDER = "database"
 
@@ -35,10 +34,6 @@ def write_new_json(file_name, data):
     file_path = os.path.join(DATABASE_FOLDER, file_name)
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
-
-def hash_password(password, key=b'secret_key'):
-    hasher = hmac.new(key, password.encode(), hashlib.sha256).hexdigest()
-    return hasher
     
 def save_and_display_screenshot(screenshot_path, save_folder):
     if screenshot_path:
@@ -104,7 +99,7 @@ def format_username(username):
 users = read_json("users.json")
 
 if not any(user["username"] == "Admin" for user in users):
-    users.append({"username": "Admin", "password": hash_password("1234"), "role": "Owner"})
+    users.append({"username": "Admin", "password": "1234", "role": "Owner"})
     write_json("users.json", users)
 
 if "logged_in" not in st.session_state:
@@ -114,7 +109,7 @@ if "logged_in" not in st.session_state:
 
 def login(username, password):
     users = read_json("users.json")
-    user = next((u for u in users if u["username"] == username and u["password"] == hash_password(password)), None)
+    user = next((u for u in users if u["username"] == username and u["password"] == password), None)
     if user:
         st.session_state["logged_in"] = True
         st.session_state["role"] = user["role"]
@@ -163,7 +158,7 @@ def show_signup_page():
                 # Add the new user to the list
                 new_user = {
                     "username": new_username,
-                    "password": hash_password(new_password),
+                    "password": new_password,
                     "role": new_role
                 }
                 users.append(new_user)
