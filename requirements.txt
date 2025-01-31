@@ -1,5 +1,4 @@
 pip==25.0
 streamlit
 pandas
-hmac
 pillow
