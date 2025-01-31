@@ -4,10 +4,10 @@ import os
 import pandas as pd
 from pymongo import MongoClient
 from datetime import datetime
-import hashlib
 import shutil
 from PIL import Image
 import json
+import hmac
 
 DATABASE_FOLDER = "database"
 
@@ -36,9 +36,10 @@ def write_new_json(file_name, data):
     with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
+def hash_password(password, key=b'secret_key'):
+    hasher = hmac.new(key, password.encode(), hashlib.sha256).hexdigest()
+    return hasher
+    
 def save_and_display_screenshot(screenshot_path, save_folder):
     if screenshot_path:
         try:
@@ -205,7 +206,7 @@ else:
         # Display the formatted username in the sidebar
         formatted_username = format_username(st.session_state['username'])
         st.sidebar.markdown(f"""
-            <div style="text-align: center;background-color: rgb(22 22 22); color:white; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);">
+            <div style="text-align: center;background-color: rgb(239 239 239); color:black; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);">
                 <h2>Welcome, {formatted_username}.</h2>
             </div>
         """, unsafe_allow_html=True)
@@ -263,80 +264,89 @@ else:
             return total_revenue
 
         # Date selector for filtering data
-        selected_date = st.date_input("Select a date", datetime.today())
+        selected_date = st.date_input("Select a date", None, key="home_date_input")
 
-        # Calculate and display total revenue
-        total_revenue = calculate_total_revenue(selected_date)
-        st.markdown(f"""
-            <div class="card">
-                <div class="card-title">Total Money Earned</div>
-                <div class="card-text">Rs.{total_revenue}</div>
-            </div>
-        """, unsafe_allow_html=True)
+        if selected_date:
+            # Calculate and display total revenue
+            total_revenue = calculate_total_revenue(selected_date)
+            st.markdown(f"""
+                <div class="card">
+                    <div class="card-title">Total Money Earned</div>
+                    <div class="card-text">Rs.{total_revenue}</div>
+                </div>
+            """, unsafe_allow_html=True)
 
-        # Show counters for each game
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            forza_count = get_game_count("Forza", selected_date)
-            st.markdown(f"""
-                <div class="card">
-                    <div class="card-title">Forza</div>
-                    <div class="card-text">{forza_count} games played</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            Need_For_Speed_count = get_game_count("Need_For_Speed", selected_date)
-            st.markdown(f"""
-                <div class="card">
-                    <div class="card-title">NFS</div>
-                    <div class="card-text">{Need_For_Speed_count} games played</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col3:
-            thrillmax_count = get_game_count("3D ThrillMax", selected_date)
-            st.markdown(f"""
-                <div class="card">
-                    <div class="card-title">3D ThrillMax</div>
-                    <div class="card-text">{thrillmax_count} games played</div>
-                </div>
-            """, unsafe_allow_html=True)
-        with col4:
-            MetaVR_count = get_game_count("MetaVR", selected_date)
-            st.markdown(f"""
-                <div class="card">
-                    <div class="card-title">MetaVR</div>
-                    <div class="card-text">{MetaVR_count} games played</div>
-                </div>
-            """, unsafe_allow_html=True)
-    
+            # Show counters for each game
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                forza_count = get_game_count("Forza", selected_date)
+                st.markdown(f"""
+                    <div class="card">
+                        <div class="card-title">Forza</div>
+                        <div class="card-text">{forza_count} games played</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                Need_For_Speed_count = get_game_count("Need_For_Speed", selected_date)
+                st.markdown(f"""
+                    <div class="card">
+                        <div class="card-title">NFS</div>
+                        <div class="card-text">{Need_For_Speed_count} games played</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col3:
+                thrillmax_count = get_game_count("3D ThrillMax", selected_date)
+                st.markdown(f"""
+                    <div class="card">
+                        <div class="card-title">3D ThrillMax</div>
+                        <div class="card-text">{thrillmax_count} games played</div>
+                    </div>
+                """, unsafe_allow_html=True)
+            with col4:
+                MetaVR_count = get_game_count("MetaVR", selected_date)
+                st.markdown(f"""
+                    <div class="card">
+                        <div class="card-title">MetaVR</div>
+                        <div class="card-text">{MetaVR_count} games played</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
     elif st.session_state.get("page") == "Briefing":
         st.header("Game Briefing")
-
-        game_list = ["Forza", "Need_For_Speed", "3D ThrillMax", "MetaVR"]
+        
+        game_list = ["All", "Forza", "Need_For_Speed", "3D ThrillMax", "MetaVR"]
         selected_game = st.selectbox("Select a game", game_list)
-        selected_date = st.date_input("Select a date", datetime.today())
-
+        selected_date = st.date_input("Select a date", None, key="date_input")
+        
         if selected_game and selected_date:
             formatted_date = selected_date.strftime("%d_%m_%y")
             
-            # Read data from the JSON file for the selected game
-            game_data = read_json(f"{selected_game}.json")
-            filtered_data = [entry for entry in game_data if entry["date"] == formatted_date]
-
-            record_count = len(filtered_data)
+            games_to_check = game_list[1:] if selected_game == "All" else [selected_game]
+            all_filtered_data = []
+            
+            for game in games_to_check:
+                game_data = read_json(f"{game}.json")
+                filtered_data = [entry for entry in game_data if entry["date"] == formatted_date]
+                
+                if filtered_data:
+                    for data in filtered_data:
+                        data["game"] = game  # Add game name for display
+                    all_filtered_data.extend(filtered_data)
+            
+            record_count = len(all_filtered_data)
             st.subheader(f"Total Records: {record_count} entries found")
-
-            if filtered_data:
-                for data in filtered_data:
+            
+            if all_filtered_data:
+                for data in all_filtered_data:
                     hour_12 = (data["processing_hour"] - 1) % 24
                     am_pm = "AM" if hour_12 < 12 else "PM"
                     hour_12 = hour_12 if hour_12 <= 12 else hour_12 - 12
                     formatted_time = f"{hour_12}:00 {am_pm}"
-
-                    st.subheader(f"Details for {selected_game} on {formatted_date}")
+                    
+                    st.subheader(f"Details for {data['game']} on {formatted_date}")
                     st.write(f"**Time Duration:** {data['time_duration']} minutes")
                     st.write(f"**Hour:** {formatted_time}")
-
+                    
                     if data.get("screenshot"):
                         try:
                             img = Image.open(data["screenshot"])
@@ -347,7 +357,7 @@ else:
                     else:
                         st.write("No screenshot available")
             else:
-                st.write(f"No data found for {selected_game} on {formatted_date}")
+                st.write(f"No data found for the selected date: {formatted_date}")
         else:
             st.write("Please select both a game and a date to view the briefing details.")
 
