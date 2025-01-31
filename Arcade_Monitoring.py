@@ -518,7 +518,7 @@ else:
                             if os.path.exists(screenshot_path):
                                 image = Image.open(screenshot_path)
                                 new_image = image.resize((600, 300))
-                                cols[1].image(new_image, use_column_width= True)
+                                cols[1].image(new_image, use_container_width= True)
                             else:
                                 cols[1].write("Image not found.")
 
@@ -631,7 +631,7 @@ else:
                             screenshot_path = row.get("screenshot", "")
                             if os.path.exists(screenshot_path):
                                 image = Image.open(screenshot_path)
-                                cols[1].image(image, use_column_width=True)
+                                cols[1].image(image, use_container_width=True)
                             else:
                                 cols[1].write("Image not found.")
 
