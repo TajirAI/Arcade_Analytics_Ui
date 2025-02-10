@@ -95,11 +95,16 @@ def format_username(username):
         return username.split("@")[0]  # Strip the domain
     return username
   
-users = read_json("users.json")
+users = [
+        {"username":"Admin","password":"1234","role":"Owner"},
+        {"username":"Rizwan@tajirai.com","password":"123456","role":"Owner"},
+        {"username":"Niaz@tajirai.com","password":"12345","role":"Salesman"},
+        {"username":"Shahzaib@tajirai.com","password":"12345","role":"Salesman"},
+    ]
 
 if not any(user["username"] == "Admin" for user in users):
     users.append({"username": "Admin", "password": "1234", "role": "Owner"})
-    write_json("users.json", users)
+    # write_json("users.json", users)
 
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
@@ -107,7 +112,6 @@ if "logged_in" not in st.session_state:
     st.session_state["username"] = None
 
 def login(username, password):
-    users = read_json("users.json")
     user = next((u for u in users if u["username"] == username and u["password"] == password), None)
     if user:
         st.session_state["logged_in"] = True
@@ -147,8 +151,8 @@ def show_signup_page():
     if st.button("Create User"):
         if st.session_state["role"] == "Owner":
             # Read existing users from the JSON file
-            users_file = "users.json"
-            users = read_json(users_file)
+            # users_file = "users.json"
+            # users = read_json(users_file)
 
             # Check if the username already exists
             if any(user["username"] == new_username for user in users):
@@ -163,7 +167,7 @@ def show_signup_page():
                 users.append(new_user)
 
                 # Write updated users back to the JSON file
-                write_json(users_file, users)
+                # write_json(users_file, users)
                 st.success("User created successfully!")
         else:
             st.warning("Only 'Owner' role can access this page.")
