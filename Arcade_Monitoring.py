@@ -6,12 +6,67 @@ from datetime import datetime
 import shutil
 from PIL import Image
 import json
+import threading
+import schedule
+from datetime import timedelta
+import time
 
 DATABASE_FOLDER = "database"
 
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
 
 game_files = ["3D ThrillMax.json", "Forza.json", "MetaVR.json", "Need_For_Speed.json", "users.json"]
+
+game_file = ["3D ThrillMax.json", "Forza.json", "MetaVR.json", "Need_For_Speed.json","Review_Admin.json","Review_Trash.json", "Review.json"]
+
+def delete_old_data(json_file):
+    print("Delete : ", json_file)
+    # Load the JSON data
+    file_path = os.path.join(DATABASE_FOLDER, json_file)
+    with open(file_path, "r") as f:
+        data = json.load(f)
+
+    # Get the current date and the cutoff date (3 days ago)
+    today = datetime.now()  # Use datetime.now() directly
+    cutoff_date = today - timedelta(days=3)
+
+    # Filter out the old data and delete the corresponding screenshots
+    new_data = []
+    for entry in data:
+        date_str = entry['date']
+        date = datetime.strptime(date_str, '%d_%m_%y')
+        if date >= cutoff_date:
+            new_data.append(entry)
+        else:
+            screenshot_path = entry['screenshot']
+            try:
+                os.remove(screenshot_path)
+                print(f"Deleted screenshot: {screenshot_path}")
+            except FileNotFoundError:
+                print(f"Screenshot not found: {screenshot_path}")
+
+    # Save the updated JSON data
+    with open(file_path, 'w') as f:
+        json.dump(new_data, f, indent=4)
+    
+    print(json_file,"Done!")
+
+def run_daily_task(game_file):
+    for file in game_file:
+        if file != []:
+            delete_old_data(file)
+
+def schedule_daily_task():
+    schedule.every().day.at("00:00").do(run_daily_task, game_file)  # Pass the function and its arguments separately
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+# Create a separate thread for scheduling the daily task
+thread = threading.Thread(target=schedule_daily_task)
+thread.daemon = True  # Set as daemon thread so it exits when main thread exits
+thread.start()
+
 
 for game_file in game_files:
     file_path = os.path.join(DATABASE_FOLDER, game_file)
